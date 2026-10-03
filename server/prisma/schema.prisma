@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Email {
+  id       String @id @default(uuid())
+  subject  String
+  bodyHtml String
+
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  recipients Recipient[]
+}
+
+model ClickEvent {
+  id        String   @id @default(uuid())
+  timestamp DateTime @default(now())
+
+  userAgent String?
+
+  trackedLinkId String
+
+
+  trackedLink TrackedLink @relation(fields: [trackedLinkId], references: [id],onDelete: Cascade)
+
+  @@index([trackedLinkId])
+  @@index([timestamp])
+}
+
+model TrackedLink {
+  id          String   @id @default(uuid())
+  originalUrl String
+  createdAt   DateTime @default(now())
+
+  recipientId String
+
+
+  recipient Recipient @relation(fields: [recipientId],references: [id], onDelete: Cascade)
+
+  clickEvents ClickEvent[]
+
+  @@index([recipientId])
+}
+
+model Recipient {
+  id           String @id @default(uuid())
+  emailAddress String
+
+  trackingToken String @unique @default(uuid())
+
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  emailId String
+
+  email Email @relation(fields: [emailId], references: [id], onDelete: Cascade)
+
+  openEvents OpenEvent[]
+  trackedLinks TrackedLink[]
+
+  @@index([emailId])
+  @@index([emailAddress])
+}
+
+model OpenEvent {
+  id        String   @id @default(uuid())
+  timestamp DateTime @default(now())
+
+  userAgent String?
+  ipHash    String?
+
+  classification OpenClassification @default(UNKNOWN)
+
+  recipientId String
+
+  recipient Recipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId])
+  @@index([timestamp])
+}
+
+enum OpenClassification {
+  HUMAN_LIKE
+  PROXY_OR_SCANNER
+  UNKNOWN
+}
