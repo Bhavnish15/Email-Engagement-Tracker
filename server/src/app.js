@@ -8,16 +8,26 @@ import trackingRoutes from "./routes/tracking.routes.js";
 dotenv.config();
 const app = express();
 
+const allowedOrigins = ["http://localhost:5173", process.env.CLIENT_URL].filter(
+  Boolean,
+);
+
 app.use(
   cors({
-    origin: [
-      process.env.CLIENT_URL,
-      "http://localhost:5173",
-    ].filter(Boolean),
-  })
+    origin(origin, callback) {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
+  }),
 );
 app.use(express.json());
-
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -26,9 +36,7 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({
     success: false,
     message:
-      err.status && err.status < 500
-        ? err.message
-        : "Internal server error",
+      err.status && err.status < 500 ? err.message : "Internal server error",
   });
 });
 
@@ -36,35 +44,34 @@ app.use((err, req, res, next) => {
 app.use((req, res, next) => {
   console.log(
     `[HTTP] ${req.method} ${req.originalUrl}`,
-    req.get("user-agent") || ""
+    req.get("user-agent") || "",
   );
 
   next();
 });
 
-
 // TEST API
 app.get("/api/health", (req, res) => {
-    res.status(200).json({
-        success: true,
-        message: "Email Engagement Tracker API is running successfully"
-    });
+  res.status(200).json({
+    success: true,
+    message: "Email Engagement Tracker API is running successfully",
+  });
 });
 
 app.get("/api/db-health", async (req, res) => {
-    try {
-        await prisma.$queryRaw`SELECT 1`;
-        res.status(200).json({
-            success: true,
-            message: "Database connection is healthy"
-        });
-    } catch (error) {
-        console.error("Database connection error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Database connection is not healthy"
-        });
-    }
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({
+      success: true,
+      message: "Database connection is healthy",
+    });
+  } catch (error) {
+    console.error("Database connection error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Database connection is not healthy",
+    });
+  }
 });
 
 // Email routes
@@ -72,7 +79,6 @@ app.use("/api/emails", emailRoutes);
 
 // Tracking routes
 app.use("/api/track", trackingRoutes);
-
 
 const PORT = process.env.PORT || 5000;
 
